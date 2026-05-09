@@ -447,14 +447,27 @@ function renderBal(d) {
       '<div class="t-date">' + sd(a.lastUpdated) + '</div></div>';
   }
 
+  function mkCCTile(a) {
+    var hasBalance = a.balance !== 0;
+    var cls   = hasBalance ? 'neg' : 'gold';
+    var style = hasBalance ? '' : 'opacity:0.7;border-color:rgba(212,168,67,0.25)';
+    return '<div class="tile" style="' + style + '">' +
+      '<div class="t-inst">' + a.institution + '</div>' +
+      '<div class="t-name">' + (a.account || '').replace(/\s*\(.*\)\s*/g, '').trim() + '</div>' +
+      '<div class="t-bal ' + cls + '">' + (hasBalance ? ff(a.balance) : '$0.00') + '</div>' +
+      '<div class="t-date">Checked ' + sd(a.lastUpdated) + '</div></div>';
+  }
+
   var bkh = (d.bankAccounts || []).length
     ? '<div class="tiles">' + d.bankAccounts.map(function(a) { return mkTile(a, 'pos'); }).join('') + '</div>'
     : '<div style="color:var(--muted);font-size:11px">No bank accounts found.</div>';
 
-  var active = (d.creditAccounts || []).filter(function(a) { return a.balance !== 0; });
-  var cch = active.length
-    ? '<div class="tiles">' + active.map(function(a) { return mkTile(a, 'neg'); }).join('') + '</div>'
-    : '<div style="color:var(--muted);font-size:11px">All cards at $0.</div>';
+  var withBal    = (d.creditAccounts || []).filter(function(a) { return a.balance !== 0; });
+  var zeroBal    = (d.creditAccounts || []).filter(function(a) { return a.balance === 0; });
+  var sortedCards = withBal.concat(zeroBal);
+  var cch = sortedCards.length
+    ? '<div class="tiles">' + sortedCards.map(mkCCTile).join('') + '</div>'
+    : '<div style="color:var(--muted);font-size:11px">No credit cards found.</div>';
 
   var other = (d.otherAccounts || []).filter(function(a) { return a.balance !== 0; });
   var oth = other.length
