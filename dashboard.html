@@ -3,15 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
-<link rel="icon" type="image/png" sizes="128x128" href="icon-128.png">
-<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Finance">
-
-  
-<title>Finance Dash OHB</title>
+<title>Harold — Financial Dashboard</title>
 <style>
 /* ── RESET & BASE ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -516,8 +508,8 @@ function renderSpend(d) {
     kpis +
     '<div class="card"><div class="card-hdr"><div class="card-title">Monthly Spend</div><div class="card-meta">' + mlen + ' months</div></div>' + monthBars + '</div>' +
     '<div class="card"><div class="card-hdr"><div class="card-title">Weekly Spend</div><div class="card-meta">Last 8 weeks</div></div>' + weekBars + '</div>' +
-    '<div class="card"><div class="card-hdr"><div class="card-title">Spend by Card</div></div>' + cardBars + '</div>' +
-    '<div class="card"><div class="card-hdr"><div class="card-title">Top Merchants</div></div>' + merchantBars + '</div>' +
+    '<div class="card"><div class="card-hdr"><div class="card-title">Spend by Card</div><div class="card-meta">' + (d.monthRange || '') + '</div></div>' + cardBars + '</div>' +
+    '<div class="card"><div class="card-hdr"><div class="card-title">Top Merchants</div><div class="card-meta">' + (d.monthRange || '') + '</div></div>' + merchantBars + '</div>' +
     '<div class="card"><div class="card-hdr"><div class="card-title">Recent Transactions</div></div>' +
     '<div class="txg"><div>Date</div><div>Description</div><div style="text-align:right">Amount</div></div>' + txns + '</div>';
 }
