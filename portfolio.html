@@ -42,7 +42,6 @@
       line-height: 1.5;
     }
 
-    /* ── Header ── */
     .header {
       display: flex;
       align-items: center;
@@ -69,7 +68,6 @@
 
     .header-title  { font-size: 15px; font-weight: 600; }
     .header-sub    { font-size: 11px; color: var(--text2); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
-
     .header-right  { display: flex; align-items: center; gap: 14px; }
 
     .live-indicator {
@@ -103,15 +101,12 @@
     }
 
     .btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
-
     .btn.loading { opacity: 0.55; pointer-events: none; }
-
-    .btn-icon { display: inline-block; transition: transform 0.3s; }
+    .btn-icon { display: inline-block; }
     .btn.loading .btn-icon { animation: spin 0.7s linear infinite; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Setup Banner ── */
     .banner {
       margin: 22px 28px 0;
       background: var(--blue-dim);
@@ -134,14 +129,12 @@
       color: var(--gold);
     }
 
-    /* ── Main ── */
     .main {
       padding: 22px 28px;
       max-width: 1440px;
       margin: 0 auto;
     }
 
-    /* ── KPI Row ── */
     .kpi-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -180,7 +173,6 @@
     .kpi-sub.up   { color: var(--green); }
     .kpi-sub.down { color: var(--red); }
 
-    /* ── Section Card ── */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -210,7 +202,6 @@
       color: var(--text2);
     }
 
-    /* ── Table ── */
     table { width: 100%; border-collapse: collapse; }
 
     thead th {
@@ -221,11 +212,9 @@
       color: var(--text3);
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
-      cursor: pointer; user-select: none;
     }
 
-    thead th:hover { color: var(--text2); }
-    thead th.r     { text-align: right; }
+    thead th.r { text-align: right; }
 
     tbody tr {
       border-bottom: 1px solid var(--border);
@@ -277,7 +266,6 @@
       min-width: 38px; text-align: right;
     }
 
-    /* ── Chart ── */
     .chart-area { padding: 20px; height: 300px; position: relative; }
 
     .chart-toggles {
@@ -295,10 +283,8 @@
     }
 
     .tog:not(.on) { opacity: 0.28; }
-
     .tog-dot { width: 6px; height: 6px; border-radius: 50%; }
 
-    /* ── Empty state ── */
     .empty {
       text-align: center; padding: 56px 20px; color: var(--text3);
     }
@@ -306,7 +292,6 @@
     .empty h3  { font-size: 15px; color: var(--text2); margin-bottom: 8px; }
     .empty p   { font-size: 13px; line-height: 1.65; }
 
-    /* ── Responsive ── */
     @media (max-width: 900px) {
       .kpi-row { grid-template-columns: 1fr 1fr; }
       .main, .header { padding-left: 16px; padding-right: 16px; }
@@ -338,10 +323,9 @@
 <div class="banner hidden" id="banner">
   <span class="banner-icon">⚙</span>
   <div>
-    <strong>One-time setup needed</strong>
-    Open <code>portfolio.html</code> and set <code>SHEET_ID</code>, <code>HOLDINGS_GID</code>,
-    and <code>HISTORY_GID</code> at the top of the script. Your sheet must be shared as
-    "Anyone with the link can view."
+    <strong>Could not load data</strong>
+    Make sure the sheet is shared as "Anyone with the link can view" and that the
+    Holdings and History tabs exist. Run the Apps Script import first if you have not yet.
   </div>
 </div>
 
@@ -378,7 +362,7 @@
     <div id="table-wrap">
       <div class="empty">
         <h3>Waiting for data</h3>
-        <p>Set your Sheet ID in the config section below, then click Refresh.</p>
+        <p>Run the Fidelity CSV import from the Finance OHB menu in your Google Sheet first.</p>
       </div>
     </div>
   </div>
@@ -396,13 +380,11 @@
 </div>
 
 <script>
-  // ─────────────────────────────────────────────
-  //  CONFIG — edit these three values
-  // ─────────────────────────────────────────────
+  // ─── CONFIG ───────────────────────────────────────────
   const SHEET_ID     = '1jmoq4wfJ2yYY5bl01bI_LXvMGEQiHG4pMcxGgwdfRWs';
-  const HOLDINGS_GID = '0';      // gid= param for Holdings tab
-  const HISTORY_GID  = '1';      // gid= param for History tab
-  // ─────────────────────────────────────────────
+  const HOLDINGS_TAB = 'Holdings';
+  const HISTORY_TAB  = 'History';
+  // ──────────────────────────────────────────────────────
 
   const PALETTE = [
     '#4b8fff','#00d08a','#f0b940','#ff6b9d','#a78bfa',
@@ -423,13 +405,13 @@
   const fp = v => v == null || isNaN(v) ? '—' : (v>=0?'+':'')+v.toFixed(2)+'%';
   const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'mute';
 
-  function csvURL(gid) {
-    return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
+  function csvURL(tabName) {
+    return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
   }
 
-  async function getCSV(gid) {
-    const r = await fetch(csvURL(gid), { cache:'no-store' });
-    if (!r.ok) throw new Error(`HTTP ${r.status} for gid=${gid}`);
+  async function getCSV(tabName) {
+    const r = await fetch(csvURL(tabName), { cache:'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status} fetching tab "${tabName}"`);
     const text = await r.text();
     return Papa.parse(text, { header:true, skipEmptyLines:true, dynamicTyping:true }).data;
   }
@@ -441,19 +423,19 @@
 
   function parseHoldings(rows) {
     return rows.map(r => ({
-      ticker:    String(r['Ticker']       || r['ticker']       || '').trim(),
-      desc:      String(r['Description']  || r['description']  || '').trim(),
-      shares:    toNum(r['Shares']        || r['shares']),
-      avgCost:   toNum(r['Avg Cost']      || r['avg_cost']     || r['Avg Cost Basis'] || 0),
-      price:     toNum(r['Live Price']    || r['price']        || r['Last Price']     || 0),
-      value:     toNum(r['Live Value']    || r['value']        || r['Current Value']  || 0),
-      costBasis: toNum(r['Cost Basis']    || r['cost_basis']   || r['Cost Basis Total'] || 0),
-      gl:        toNum(r['Gain/Loss $']   || r['gainloss']     || r['Total Gain/Loss Dollar'] || 0),
+      ticker:    String(r['Ticker']      || '').trim(),
+      desc:      String(r['Description'] || '').trim(),
+      shares:    toNum(r['Shares']),
+      avgCost:   toNum(r['Avg Cost']),
+      price:     toNum(r['Live Price']),
+      value:     toNum(r['Live Value']),
+      costBasis: toNum(r['Cost Basis']),
+      gl:        toNum(r['Gain/Loss $']),
     }))
     .filter(h => h.ticker && h.shares > 0)
     .map(h => {
-      if (!h.value && h.price && h.shares) h.value = h.price * h.shares;
-      if (!h.costBasis && h.avgCost && h.shares) h.costBasis = h.avgCost * h.shares;
+      if (!h.value     && h.price    && h.shares) h.value     = h.price * h.shares;
+      if (!h.costBasis && h.avgCost  && h.shares) h.costBasis = h.avgCost * h.shares;
       if (!h.gl) h.gl = h.value - h.costBasis;
       return h;
     });
@@ -461,33 +443,28 @@
 
   function parseHistory(rows) {
     return rows.map(r => ({
-      ts:     new Date(r['Timestamp'] || r['timestamp'] || ''),
-      ticker: String(r['Ticker'] || r['ticker'] || '').trim(),
-      price:  toNum(r['Price']  || r['price']  || 0),
-      value:  toNum(r['Value']  || r['value']  || 0),
+      ts:     new Date(r['Timestamp'] || ''),
+      ticker: String(r['Ticker'] || '').trim(),
+      price:  toNum(r['Price']),
+      value:  toNum(r['Value']),
     }))
     .filter(r => r.ticker && r.ts instanceof Date && !isNaN(r.ts.getTime()));
   }
 
   async function loadAll() {
-    if (SHEET_ID === 'YOUR_SHEET_ID_HERE') {
-      $('banner').classList.remove('hidden');
-      return;
-    }
-    $('banner').classList.add('hidden');
-
     const btn = $('refresh-btn');
     btn.classList.add('loading');
+    $('banner').classList.add('hidden');
 
     try {
-      const hRows = await getCSV(HOLDINGS_GID);
+      const hRows = await getCSV(HOLDINGS_TAB);
       holdings = parseHoldings(hRows);
 
       try {
-        const histRows = await getCSV(HISTORY_GID);
+        const histRows = await getCSV(HISTORY_TAB);
         history = parseHistory(histRows);
       } catch(e) {
-        console.warn('History not loaded:', e.message);
+        console.warn('History tab not loaded yet:', e.message);
         history = [];
       }
 
@@ -500,10 +477,12 @@
 
     } catch(err) {
       console.error(err);
+      $('banner').classList.remove('hidden');
       $('table-wrap').innerHTML = `
         <div class="empty">
           <h3>Could not load data</h3>
-          <p>Verify your Sheet ID and that the sheet is shared as "Anyone with link can view."<br>
+          <p>Run the Fidelity CSV import first, and confirm the sheet is shared as
+          "Anyone with the link can view."<br>
           <code style="color:var(--red)">${err.message}</code></p>
         </div>`;
     } finally {
@@ -526,22 +505,22 @@
     const bestPct = best && best.costBasis > 0
       ? ((best.value-best.costBasis)/best.costBasis)*100 : 0;
 
-    $('k-total').textContent  = fc(tv);
+    $('k-total').textContent   = fc(tv);
     $('k-total-s').textContent = fc(tc) + ' cost basis';
-    $('k-total-s').className  = 'kpi-sub mute';
+    $('k-total-s').className   = 'kpi-sub mute';
 
-    $('k-gl').textContent     = fc(tgl);
-    $('k-gl').style.color     = tgl >= 0 ? 'var(--green)' : 'var(--red)';
-    $('k-gl-s').textContent   = fp(tpct) + ' total return';
-    $('k-gl-s').className     = 'kpi-sub ' + cls(tgl);
+    $('k-gl').textContent      = fc(tgl);
+    $('k-gl').style.color      = tgl >= 0 ? 'var(--green)' : 'var(--red)';
+    $('k-gl-s').textContent    = fp(tpct) + ' total return';
+    $('k-gl-s').className      = 'kpi-sub ' + cls(tgl);
 
-    $('k-best').textContent   = best ? best.ticker : '—';
-    $('k-best').style.color   = bestPct >= 0 ? 'var(--green)' : 'var(--red)';
-    $('k-best-s').textContent = best ? fp(bestPct) : '—';
-    $('k-best-s').className   = 'kpi-sub ' + cls(bestPct);
+    $('k-best').textContent    = best ? best.ticker : '—';
+    $('k-best').style.color    = bestPct >= 0 ? 'var(--green)' : 'var(--red)';
+    $('k-best-s').textContent  = best ? fp(bestPct) : '—';
+    $('k-best-s').className    = 'kpi-sub ' + cls(bestPct);
 
-    $('k-pos').textContent   = holdings.length;
-    $('k-pos-s').textContent = holdings.length > 0 ? fc(tv/holdings.length) + ' avg' : '—';
+    $('k-pos').textContent     = holdings.length;
+    $('k-pos-s').textContent   = holdings.length > 0 ? fc(tv/holdings.length) + ' avg' : '—';
   }
 
   function renderTable() {
@@ -551,7 +530,7 @@
       $('table-wrap').innerHTML = `
         <div class="empty">
           <h3>No holdings found</h3>
-          <p>Make sure your Holdings tab is populated and column names match the Apps Script output.</p>
+          <p>Make sure the Fidelity CSV import has run and the Holdings tab has data.</p>
         </div>`;
       return;
     }
@@ -614,7 +593,7 @@
 
     if (!history.length) {
       tgl.innerHTML = `<span style="font-size:12px;color:var(--text3)">
-        History snapshots appear here after Apps Script runs.</span>`;
+        History builds automatically after the first snapshot runs.</span>`;
       if (chart) { chart.destroy(); chart = null; }
       return;
     }
