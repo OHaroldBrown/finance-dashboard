@@ -138,6 +138,7 @@ body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkM
     <span class="sync-spin" id="syncSpin"></span>
     <button class="btn btn-gold" id="syncBtn" onclick="syncAll()">&#8635; Sync</button>
     <button class="btn btn-green" onclick="refreshAll()">&#8635; Refresh</button>
+    <span id="lastSync" style="font-size:10px;color:#455270;white-space:nowrap"></span>
   </div>
 </div>
 <div class="tabs">
@@ -201,13 +202,13 @@ function syncAll() {
     .then(function(d){
       btn.disabled = false;
       spin.classList.remove('on');
-      asOf.textContent = d.ok ? 'Sync complete — ' + new Date().toLocaleTimeString() : 'Sync error: ' + d.error;
+      var t=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); asOf.textContent=d.asOf||''; document.getElementById('lastSync').textContent='Synced '+t;
       if(d.ok) refreshAll();
     })
     .catch(function(){
       btn.disabled = false;
       spin.classList.remove('on');
-      asOf.textContent = 'Sync complete — refreshing...';
+      var t=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); asOf.textContent=''; document.getElementById('lastSync').textContent='Synced '+t;
       refreshAll();
     });
 }
