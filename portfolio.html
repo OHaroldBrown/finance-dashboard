@@ -447,8 +447,6 @@
   }
 
   function parseHoldings(rows) {
-    console.log('Total rows:', rows.length);
-    rows.forEach((r,i) => console.log('ROW',i,'t='+String(r['Ticker']||'').trim(),'v='+JSON.stringify(r['Live Value']),'s='+JSON.stringify(r['Shares'])));
     return rows.map(r => ({
       ticker:    String(r['Ticker']      || '').trim(),
       acct:      String(r['Account']     || '').trim(),
@@ -461,7 +459,7 @@
       costBasis: toNum(r['Cost Basis']),
       gl:        toNum(r['Gain/Loss $']),
     }))
-    .filter(h => { const ok = h.ticker && (h.shares > 0 || h.value > 0); if(!ok && h.ticker) console.log('DROPPED:',h.ticker,'s='+h.shares,'v='+h.value); return ok; })
+    .filter(h => h.ticker && (h.shares > 0 || h.value > 0))
     .map(h => {
       if (!h.value     && h.price   && h.shares) h.value     = h.price * h.shares;
       if (!h.costBasis && h.avgCost && h.shares) h.costBasis = h.avgCost * h.shares;
