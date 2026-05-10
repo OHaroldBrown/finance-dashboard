@@ -395,11 +395,9 @@
 </div>
 
 <script>
-  // ─── CONFIG ───────────────────────────────────────────
   const SHEET_ID     = '1jmoq4wfJ2yYY5bl01bI_LXvMGEQiHG4pMcxGgwdfRWs';
   const HOLDINGS_TAB = 'Holdings';
   const HISTORY_TAB  = 'History';
-  // ──────────────────────────────────────────────────────
 
   const PALETTE = [
     '#4b8fff','#00d08a','#f0b940','#ff6b9d','#a78bfa',
@@ -447,7 +445,6 @@
   }
 
   function parseHoldings(rows) {
-
     return rows.map(r => ({
       ticker:    String(r['Ticker']      || '').trim(),
       acct:      String(r['Account']     || '').trim(),
@@ -521,7 +518,6 @@
 
   function renderKPIs() {
     const tv  = holdings.reduce((s,h) => s + h.value, 0);
-    // Gain/loss only on invested positions, not cash
     const inv = holdings.filter(h => h.type !== 'Cash');
     const tc  = inv.reduce((s,h) => s + h.costBasis, 0);
     const tgl = inv.reduce((s,h) => s + h.gl, 0);
@@ -568,7 +564,6 @@
     }
 
     const tv = holdings.reduce((s,h) => s+h.value, 0);
-    // Sort: cash last, then by value descending
     const sorted = holdings.slice().sort((a,b) => {
       if (a.type === 'Cash' && b.type !== 'Cash') return 1;
       if (a.type !== 'Cash' && b.type === 'Cash') return -1;
