@@ -435,8 +435,23 @@
   async function getCSV(tabName) {
     const r = await fetch(csvURL(tabName), { cache:'no-store' });
     if (!r.ok) throw new Error(`HTTP ${r.status} fetching tab "${tabName}"`);
-    const text = await r.text();
-    return Papa.parse(text, { header:true, skipEmptyLines:false, dynamicTyping:false }).data;
+    let text = await r.text();
+    if (tabName === 'Holdings') {
+      const lines = text.split('\n');
+      if (lines.length > 0) {
+        const parsed = Papa.parse(lines[0]);
+        const headerCols = parsed.data[0] || [];
+        const realColIdx = headerCols.findIndex(h => !h || h.trim() === '');
+        const realCols = realColIdx >= 0 ? realColIdx : headerCols.length;
+        const cleanLines = lines.map(line => {
+          const cols = Papa.parse(line).data[0];
+          if (!cols || cols.length === 0) return '';
+          return cols.slice(0, realCols).join(',');
+        });
+        text = cleanLines.join('\n');
+      }
+    }
+    return Papa.parse(text, { header:true, skipEmptyLines:true, dynamicTyping:false }).data;
   }
 
   function toNum(v) {
