@@ -23,9 +23,7 @@
       --text2:     #7888aa;
       --text3:     #3d4d6a;
       --green:     #00d08a;
-      --green-dim: rgba(0, 208, 138, 0.10);
       --red:       #ff4560;
-      --red-dim:   rgba(255, 69, 96, 0.10);
       --blue:      #4b8fff;
       --blue-dim:  rgba(75, 143, 255, 0.10);
       --gold:      #f0b940;
@@ -249,6 +247,22 @@
       max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
+    .acct-badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--border2);
+      color: var(--text2);
+      background: var(--surface2);
+      white-space: nowrap;
+    }
+
+    .acct-badge.ira     { border-color: #a78bfa; color: #a78bfa; }
+    .acct-badge.crypto  { border-color: var(--gold); color: var(--gold); }
+    .acct-badge.roth    { border-color: #34d399; color: #34d399; }
+
     .up   { color: var(--green); }
     .down { color: var(--red); }
     .mute { color: var(--text2); }
@@ -405,6 +419,15 @@
   const fp = v => v == null || isNaN(v) ? '—' : (v>=0?'+':'')+v.toFixed(2)+'%';
   const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'mute';
 
+  function acctClass(acct) {
+    if (!acct) return '';
+    const a = acct.toLowerCase();
+    if (a.includes('ira') || a.includes('rollover')) return 'ira';
+    if (a.includes('crypto'))  return 'crypto';
+    if (a.includes('roth'))    return 'roth';
+    return '';
+  }
+
   function csvURL(tabName) {
     return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
   }
@@ -424,6 +447,7 @@
   function parseHoldings(rows) {
     return rows.map(r => ({
       ticker:    String(r['Ticker']      || '').trim(),
+      acct:      String(r['Account']     || '').trim(),
       desc:      String(r['Description'] || '').trim(),
       shares:    toNum(r['Shares']),
       avgCost:   toNum(r['Avg Cost']),
@@ -434,8 +458,8 @@
     }))
     .filter(h => h.ticker && h.shares > 0)
     .map(h => {
-      if (!h.value     && h.price    && h.shares) h.value     = h.price * h.shares;
-      if (!h.costBasis && h.avgCost  && h.shares) h.costBasis = h.avgCost * h.shares;
+      if (!h.value     && h.price   && h.shares) h.value     = h.price * h.shares;
+      if (!h.costBasis && h.avgCost && h.shares) h.costBasis = h.avgCost * h.shares;
       if (!h.gl) h.gl = h.value - h.costBasis;
       return h;
     });
@@ -445,6 +469,7 @@
     return rows.map(r => ({
       ts:     new Date(r['Timestamp'] || ''),
       ticker: String(r['Ticker'] || '').trim(),
+      acct:   String(r['Account'] || '').trim(),
       price:  toNum(r['Price']),
       value:  toNum(r['Value']),
     }))
@@ -516,7 +541,7 @@
 
     $('k-best').textContent    = best ? best.ticker : '—';
     $('k-best').style.color    = bestPct >= 0 ? 'var(--green)' : 'var(--red)';
-    $('k-best-s').textContent  = best ? fp(bestPct) : '—';
+    $('k-best-s').textContent  = best ? fp(bestPct) + ' (' + (best.acct || 'Brokerage') + ')' : '—';
     $('k-best-s').className    = 'kpi-sub ' + cls(bestPct);
 
     $('k-pos').textContent     = holdings.length;
@@ -543,6 +568,7 @@
       const wt    = tv > 0 ? (h.value/tv)*100 : 0;
       const color = PALETTE[i % PALETTE.length];
       const bw    = Math.max(4, Math.round(wt * 1.5));
+      const ac    = acctClass(h.acct);
 
       return `<tr>
         <td>
@@ -554,6 +580,7 @@
             </div>
           </div>
         </td>
+        <td><span class="acct-badge ${ac}">${h.acct || 'Brokerage'}</span></td>
         <td class="td-r">${fs(h.shares)}</td>
         <td class="td-r">${fc(h.avgCost)}</td>
         <td class="td-r">${fc(h.price)}</td>
@@ -574,6 +601,7 @@
         <thead>
           <tr>
             <th>Ticker</th>
+            <th>Account</th>
             <th class="r">Shares</th>
             <th class="r">Avg Cost</th>
             <th class="r">Live Price</th>
@@ -598,29 +626,30 @@
       return;
     }
 
-    const tickers = [...new Set(history.map(r => r.ticker))].sort();
-    if (!activeTickers.size) tickers.forEach(t => activeTickers.add(t));
+    // Use ticker + account as unique key so duplicate tickers across accounts show separately
+    const keys    = [...new Set(history.map(r => r.ticker + (r.acct ? ' (' + r.acct + ')' : '')))].sort();
+    if (!activeTickers.size) keys.forEach(k => activeTickers.add(k));
 
-    tgl.innerHTML = tickers.map((t,i) => {
+    tgl.innerHTML = keys.map((k,i) => {
       const c  = PALETTE[i % PALETTE.length];
-      const on = activeTickers.has(t);
+      const on = activeTickers.has(k);
       return `<div class="tog ${on?'on':''}"
                    style="border-color:${c};color:${on?c:'var(--text3)'};background:${on?c+'18':'transparent'}"
-                   data-t="${t}" data-c="${c}"
+                   data-t="${k}" data-c="${c}"
                    onclick="toggleTicker(this)">
-                <div class="tog-dot" style="background:${c}"></div>${t}
+                <div class="tog-dot" style="background:${c}"></div>${k}
               </div>`;
     }).join('');
 
-    const datasets = tickers.map((t,i) => {
-      const c  = PALETTE[i % PALETTE.length];
+    const datasets = keys.map((k,i) => {
+      const c   = PALETTE[i % PALETTE.length];
       const pts = history
-        .filter(r => r.ticker === t)
+        .filter(r => (r.ticker + (r.acct ? ' (' + r.acct + ')' : '')) === k)
         .sort((a,b) => a.ts - b.ts)
         .map(r => ({ x: r.ts, y: r.value }));
 
       return {
-        label: t,
+        label: k,
         data: pts,
         borderColor: c,
         backgroundColor: c + '14',
@@ -629,7 +658,7 @@
         pointHoverRadius: 5,
         tension: 0.35,
         fill: false,
-        hidden: !activeTickers.has(t),
+        hidden: !activeTickers.has(k),
       };
     });
 
