@@ -436,22 +436,8 @@
     const r = await fetch(csvURL(tabName), { cache:'no-store' });
     if (!r.ok) throw new Error(`HTTP ${r.status} fetching tab "${tabName}"`);
     let text = await r.text();
-    if (tabName === 'Holdings') {
-      const lines = text.split('\n');
-      if (lines.length > 0) {
-        const parsed = Papa.parse(lines[0]);
-        const headerCols = parsed.data[0] || [];
-        const realColIdx = headerCols.findIndex(h => !h || h.trim() === '');
-        const realCols = realColIdx >= 0 ? realColIdx : headerCols.length;
-        const cleanLines = lines.map(line => {
-          const cols = Papa.parse(line).data[0];
-          if (!cols || cols.length === 0) return '';
-          return cols.slice(0, realCols).join(',');
-        });
-        text = cleanLines.join('\n');
-      }
-    }
-    return Papa.parse(text, { header:true, skipEmptyLines:true, dynamicTyping:false }).data;
+    if (tabName === 'Holdings') console.log('RAW gviz text lines:', text.split('\n').length, 'first line:', text.split('\n')[0], 'second line:', text.split('\n')[1]);
+    return Papa.parse(text, { header:true, skipEmptyLines:false, dynamicTyping:false }).data;
   }
 
   function toNum(v) {
@@ -532,6 +518,7 @@
   }
 
   function renderKPIs() {
+    console.log('Holdings loaded:', holdings.length, 'rows. First ticker:', holdings[0]?.ticker, 'Last ticker:', holdings[holdings.length-1]?.ticker);
     const tv  = holdings.reduce((s,h) => s + h.value, 0);
     const inv = holdings.filter(h => h.type !== 'Cash');
     const tc  = inv.reduce((s,h) => s + h.costBasis, 0);
