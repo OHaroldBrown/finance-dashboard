@@ -447,6 +447,8 @@
   }
 
   function parseHoldings(rows) {
+    console.log('Rows from gviz:', rows.length);
+    rows.slice(0,3).forEach(r => console.log('First 3 rows:', JSON.stringify(r)));
     return rows.map(r => ({
       ticker:    String(r['Ticker']      || '').trim(),
       acct:      String(r['Account']     || '').trim(),
