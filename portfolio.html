@@ -247,7 +247,7 @@
       max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
-    .acct-badge {
+    .tag {
       display: inline-block;
       font-family: 'JetBrains Mono', monospace;
       font-size: 10px;
@@ -259,9 +259,11 @@
       white-space: nowrap;
     }
 
-    .acct-badge.ira     { border-color: #a78bfa; color: #a78bfa; }
-    .acct-badge.crypto  { border-color: var(--gold); color: var(--gold); }
-    .acct-badge.roth    { border-color: #34d399; color: #34d399; }
+    .tag.ira          { border-color: #a78bfa; color: #a78bfa; }
+    .tag.rollover-ira { border-color: #c084fc; color: #c084fc; }
+    .tag.crypto       { border-color: var(--gold); color: var(--gold); }
+    .tag.roth         { border-color: #34d399; color: #34d399; }
+    .tag.cash         { border-color: #60a5fa; color: #60a5fa; }
 
     .up   { color: var(--green); }
     .down { color: var(--red); }
@@ -338,8 +340,7 @@
   <span class="banner-icon">⚙</span>
   <div>
     <strong>Could not load data</strong>
-    Make sure the sheet is shared as "Anyone with the link can view" and that the
-    Holdings and History tabs exist. Run the Apps Script import first if you have not yet.
+    Make sure the sheet is shared as "Anyone with the link can view" and the Holdings tab exists.
   </div>
 </div>
 
@@ -347,12 +348,12 @@
 
   <div class="kpi-row">
     <div class="kpi">
-      <div class="kpi-label">Portfolio Value</div>
+      <div class="kpi-label">Total Portfolio Value</div>
       <div class="kpi-val" id="k-total">—</div>
-      <div class="kpi-sub" id="k-total-s">—</div>
+      <div class="kpi-sub mute" id="k-total-s">—</div>
     </div>
     <div class="kpi">
-      <div class="kpi-label">Total Gain / Loss</div>
+      <div class="kpi-label">Invested Gain / Loss</div>
       <div class="kpi-val" id="k-gl">—</div>
       <div class="kpi-sub" id="k-gl-s">—</div>
     </div>
@@ -419,12 +420,13 @@
   const fp = v => v == null || isNaN(v) ? '—' : (v>=0?'+':'')+v.toFixed(2)+'%';
   const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : 'mute';
 
-  function acctClass(acct) {
-    if (!acct) return '';
-    const a = acct.toLowerCase();
-    if (a.includes('ira') || a.includes('rollover')) return 'ira';
-    if (a.includes('crypto'))  return 'crypto';
-    if (a.includes('roth'))    return 'roth';
+  function tagClass(acct, type) {
+    if (type === 'Cash')   return 'cash';
+    if (type === 'Crypto') return 'crypto';
+    const a = (acct || '').toLowerCase();
+    if (a.includes('rollover')) return 'rollover-ira';
+    if (a.includes('roth'))     return 'roth';
+    if (a.includes('ira'))      return 'ira';
     return '';
   }
 
@@ -449,6 +451,7 @@
       ticker:    String(r['Ticker']      || '').trim(),
       acct:      String(r['Account']     || '').trim(),
       desc:      String(r['Description'] || '').trim(),
+      type:      String(r['Type']        || 'Stock').trim(),
       shares:    toNum(r['Shares']),
       avgCost:   toNum(r['Avg Cost']),
       price:     toNum(r['Live Price']),
@@ -456,11 +459,11 @@
       costBasis: toNum(r['Cost Basis']),
       gl:        toNum(r['Gain/Loss $']),
     }))
-    .filter(h => h.ticker && h.shares > 0)
+    .filter(h => h.ticker && (h.shares > 0 || h.value > 0))
     .map(h => {
       if (!h.value     && h.price   && h.shares) h.value     = h.price * h.shares;
       if (!h.costBasis && h.avgCost && h.shares) h.costBasis = h.avgCost * h.shares;
-      if (!h.gl) h.gl = h.value - h.costBasis;
+      if (h.type !== 'Cash' && !h.gl) h.gl = h.value - h.costBasis;
       return h;
     });
   }
@@ -468,9 +471,9 @@
   function parseHistory(rows) {
     return rows.map(r => ({
       ts:     new Date(r['Timestamp'] || ''),
-      ticker: String(r['Ticker'] || '').trim(),
+      ticker: String(r['Ticker']  || '').trim(),
       acct:   String(r['Account'] || '').trim(),
-      price:  toNum(r['Price']),
+      type:   String(r['Type']    || 'Stock').trim(),
       value:  toNum(r['Value']),
     }))
     .filter(r => r.ticker && r.ts instanceof Date && !isNaN(r.ts.getTime()));
@@ -516,12 +519,14 @@
   }
 
   function renderKPIs() {
-    const tv   = holdings.reduce((s,h) => s + h.value,     0);
-    const tc   = holdings.reduce((s,h) => s + h.costBasis, 0);
-    const tgl  = tv - tc;
+    const tv  = holdings.reduce((s,h) => s + h.value, 0);
+    // Gain/loss only on invested positions, not cash
+    const inv = holdings.filter(h => h.type !== 'Cash');
+    const tc  = inv.reduce((s,h) => s + h.costBasis, 0);
+    const tgl = inv.reduce((s,h) => s + h.gl, 0);
     const tpct = tc > 0 ? (tgl/tc)*100 : 0;
 
-    const best = holdings.slice().sort((a,b) => {
+    const best = inv.slice().sort((a,b) => {
       const pa = a.costBasis > 0 ? ((a.value-a.costBasis)/a.costBasis)*100 : 0;
       const pb = b.costBasis > 0 ? ((b.value-b.costBasis)/b.costBasis)*100 : 0;
       return pb - pa;
@@ -530,9 +535,10 @@
     const bestPct = best && best.costBasis > 0
       ? ((best.value-best.costBasis)/best.costBasis)*100 : 0;
 
+    const cashTotal = holdings.filter(h => h.type === 'Cash').reduce((s,h) => s+h.value, 0);
+
     $('k-total').textContent   = fc(tv);
-    $('k-total-s').textContent = fc(tc) + ' cost basis';
-    $('k-total-s').className   = 'kpi-sub mute';
+    $('k-total-s').textContent = fc(cashTotal) + ' in cash';
 
     $('k-gl').textContent      = fc(tgl);
     $('k-gl').style.color      = tgl >= 0 ? 'var(--green)' : 'var(--red)';
@@ -545,7 +551,7 @@
     $('k-best-s').className    = 'kpi-sub ' + cls(bestPct);
 
     $('k-pos').textContent     = holdings.length;
-    $('k-pos-s').textContent   = holdings.length > 0 ? fc(tv/holdings.length) + ' avg' : '—';
+    $('k-pos-s').textContent   = inv.length + ' invested, ' + (holdings.length - inv.length) + ' cash';
   }
 
   function renderTable() {
@@ -561,14 +567,20 @@
     }
 
     const tv = holdings.reduce((s,h) => s+h.value, 0);
-    const sorted = holdings.slice().sort((a,b) => b.value - a.value);
+    // Sort: cash last, then by value descending
+    const sorted = holdings.slice().sort((a,b) => {
+      if (a.type === 'Cash' && b.type !== 'Cash') return 1;
+      if (a.type !== 'Cash' && b.type === 'Cash') return -1;
+      return b.value - a.value;
+    });
 
     const rows = sorted.map((h,i) => {
-      const glPct = h.costBasis > 0 ? ((h.value-h.costBasis)/h.costBasis)*100 : 0;
-      const wt    = tv > 0 ? (h.value/tv)*100 : 0;
-      const color = PALETTE[i % PALETTE.length];
-      const bw    = Math.max(4, Math.round(wt * 1.5));
-      const ac    = acctClass(h.acct);
+      const isCash = h.type === 'Cash';
+      const glPct  = !isCash && h.costBasis > 0 ? ((h.value-h.costBasis)/h.costBasis)*100 : null;
+      const wt     = tv > 0 ? (h.value/tv)*100 : 0;
+      const color  = PALETTE[i % PALETTE.length];
+      const bw     = Math.max(4, Math.round(wt * 1.5));
+      const tc     = tagClass(h.acct, h.type);
 
       return `<tr>
         <td>
@@ -580,13 +592,13 @@
             </div>
           </div>
         </td>
-        <td><span class="acct-badge ${ac}">${h.acct || 'Brokerage'}</span></td>
-        <td class="td-r">${fs(h.shares)}</td>
-        <td class="td-r">${fc(h.avgCost)}</td>
-        <td class="td-r">${fc(h.price)}</td>
+        <td><span class="tag ${tc}">${h.acct || 'Brokerage'}</span></td>
+        <td class="td-r">${isCash ? '—' : fs(h.shares)}</td>
+        <td class="td-r">${isCash ? '—' : fc(h.avgCost)}</td>
+        <td class="td-r">${isCash ? '—' : fc(h.price)}</td>
         <td class="td-r">${fc(h.value)}</td>
-        <td class="td-r ${cls(h.gl)}">${fc(h.gl)}</td>
-        <td class="td-r ${cls(glPct)}">${fp(glPct)}</td>
+        <td class="td-r ${isCash ? 'mute' : cls(h.gl)}">${isCash ? '—' : fc(h.gl)}</td>
+        <td class="td-r ${isCash ? 'mute' : cls(glPct)}">${isCash || glPct === null ? '—' : fp(glPct)}</td>
         <td class="td-r">
           <div class="wt-wrap">
             <div class="wt-bar" style="width:${bw}px;background:${color}"></div>
@@ -626,8 +638,7 @@
       return;
     }
 
-    // Use ticker + account as unique key so duplicate tickers across accounts show separately
-    const keys    = [...new Set(history.map(r => r.ticker + (r.acct ? ' (' + r.acct + ')' : '')))].sort();
+    const keys = [...new Set(history.map(r => r.ticker + (r.acct ? ' (' + r.acct + ')' : '')))].sort();
     if (!activeTickers.size) keys.forEach(k => activeTickers.add(k));
 
     tgl.innerHTML = keys.map((k,i) => {
@@ -727,9 +738,7 @@
     }
   }
 
-  // Auto-refresh every 5 minutes
   setInterval(loadAll, 5 * 60 * 1000);
-
   loadAll();
 </script>
 </body>
