@@ -517,6 +517,7 @@
   }
 
   function renderKPIs() {
+    console.log('Holdings loaded:', holdings.length, 'rows. First ticker:', holdings[0]?.ticker, 'Last ticker:', holdings[holdings.length-1]?.ticker);
     const tv  = holdings.reduce((s,h) => s + h.value, 0);
     const inv = holdings.filter(h => h.type !== 'Cash');
     const tc  = inv.reduce((s,h) => s + h.costBasis, 0);
@@ -583,7 +584,7 @@
           <div class="tick-wrap">
             <div class="tick-dot" style="background:${color}"></div>
             <div>
-              <div class="tick-sym"><a href="https://www.google.com/finance/quote/${h.ticker}" target="_blank" style="color:inherit;text-decoration:none">${h.ticker}</a></div>
+              <div class="tick-sym">${h.ticker}</div>
               ${h.desc ? `<div class="tick-desc">${h.desc}</div>` : ''}
             </div>
           </div>
