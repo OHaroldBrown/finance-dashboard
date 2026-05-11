@@ -517,7 +517,6 @@
   }
 
   function renderKPIs() {
-    console.log('Holdings loaded:', holdings.length, 'rows. First ticker:', holdings[0]?.ticker, 'Last ticker:', holdings[holdings.length-1]?.ticker);
     const tv  = holdings.reduce((s,h) => s + h.value, 0);
     const inv = holdings.filter(h => h.type !== 'Cash');
     const tc  = inv.reduce((s,h) => s + h.costBasis, 0);
