@@ -436,13 +436,15 @@
     if (!json.table || !json.table.rows) return [];
     
     const cols = (json.table.cols || []).map(c => c.label);
-    return json.table.rows.map(row => {
+    const result = json.table.rows.map(row => {
       const obj = {};
       (row.c || []).forEach((cell, i) => {
         obj[cols[i]] = cell ? cell.v : '';
       });
       return obj;
     });
+    if (tabName === 'Holdings') console.log('JSON rows:', result.length, 'first:', result[0]?.Ticker, 'tickers:', result.map(r => r.Ticker).join(','));
+    return result;
   }
 
   function toNum(v) {
