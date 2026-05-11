@@ -432,22 +432,45 @@
     return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
   }
 
-  async function getCSV(tabName) {
-    console.log('getCSV called for', tabName);
-    try {
-      const r = await fetch(csvURL(tabName), { cache:'no-store' });
-      console.log('fetch response:', r.status);
-      if (!r.ok) throw new Error(`HTTP ${r.status} fetching tab "${tabName}"`);
-      const text = await r.text();
-      console.log('CSV text length:', text.length);
-      console.log('First 300 chars:', text.substring(0, 300));
-      const result = Papa.parse(text, { header:true, skipEmptyLines:false, dynamicTyping:false, delimiter:',' }).data;
-      console.log('Parsed', tabName, 'rows:', result.length);
-      return result;
-    } catch(err) {
-      console.error('getCSV error:', err);
-      throw err;
+  function parseCSV(text) {
+    const lines = text.split('\n');
+    const headers = splitLine(lines[0]);
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const vals = splitLine(line);
+      const obj = {};
+      headers.forEach((h, idx) => { if (h) obj[h] = vals[idx] || ''; });
+      if (obj[headers[0]]) result.push(obj);
     }
+    return result;
+  }
+
+  function splitLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  async function getCSV(tabName) {
+    const r = await fetch(csvURL(tabName), { cache:'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status} fetching tab "${tabName}"`);
+    const text = await r.text();
+    return parseCSV(text);
   }
 
   function toNum(v) {
@@ -489,7 +512,6 @@
   }
 
   async function loadAll() {
-    console.log('loadAll called');
     const btn = $('refresh-btn');
     btn.classList.add('loading');
     $('banner').classList.add('hidden');
