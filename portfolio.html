@@ -478,6 +478,7 @@
   }
 
   async function loadAll() {
+    console.log('loadAll called');
     const btn = $('refresh-btn');
     btn.classList.add('loading');
     $('banner').classList.add('hidden');
