@@ -440,6 +440,7 @@
       if (!r.ok) throw new Error(`HTTP ${r.status} fetching tab "${tabName}"`);
       const text = await r.text();
       console.log('CSV text length:', text.length);
+      console.log('First 300 chars:', text.substring(0, 300));
       const result = Papa.parse(text, { header:true, skipEmptyLines:false, dynamicTyping:false, delimiter:',' }).data;
       console.log('Parsed', tabName, 'rows:', result.length);
       return result;
